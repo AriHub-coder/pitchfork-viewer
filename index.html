@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pitchfork Selects Viewer</title>
+  <style>
+    :root{
+      --bg:#f5f1ea;
+      --fg:#111;
+      --muted:#767676;
+      --line:rgba(17,17,17,.08);
+      --shadow:0 24px 70px rgba(0,0,0,.10);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--fg);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      overflow:hidden;
+    }
+    .app{
+      height:100vh;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      gap:20px;
+      padding:24px;
+    }
+    .bar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .center{
+      min-height:0;
+      display:grid;
+      grid-template-columns:72px minmax(320px,1fr) 72px;
+      gap:16px;
+      align-items:center;
+    }
+    .nav{
+      width:56px;height:56px;border-radius:999px;border:1px solid var(--line);
+      background:rgba(255,255,255,.45);cursor:pointer;font-size:22px;
+      display:grid;place-items:center;justify-self:center;
+      transition:transform .15s ease, background .15s ease;
+    }
+    .nav:hover{transform:scale(1.04);background:rgba(255,255,255,.85)}
+    .stage{
+      display:grid;
+      grid-template-columns:minmax(320px,42vw) minmax(280px,420px);
+      gap:min(5vw,64px);
+      align-items:center;
+      justify-content:center;
+    }
+    .cover-wrap{display:flex;justify-content:center;align-items:center}
+    .cover{
+      width:min(42vw,680px);
+      aspect-ratio:1/1;
+      object-fit:cover;
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      border:1px solid rgba(17,17,17,.06);
+      background:#ebe4d8;
+      cursor:pointer;
+    }
+    .meta{display:flex;flex-direction:column;gap:10px;max-width:420px}
+    .eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+    .artist{margin:0;font-size:clamp(28px,3vw,44px);line-height:.98;letter-spacing:-.05em}
+    .track{margin:0;font-size:clamp(16px,1.5vw,22px);color:rgba(17,17,17,.86)}
+    .album{margin:2px 0 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .line{height:1px;background:var(--line);margin:6px 0}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;
+      min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line);
+      text-decoration:none;color:var(--fg);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+      background:rgba(255,255,255,.45);
+    }
+    .footer-note{text-align:right}
+    .empty{
+      min-height:300px;display:grid;place-items:center;text-align:center;
+      border:1px dashed var(--line);border-radius:var(--radius);background:rgba(255,255,255,.4);padding:28px;
+    }
+    @media (max-width:980px){
+      .app{padding:16px}
+      .center{grid-template-columns:52px 1fr 52px}
+      .nav{width:44px;height:44px;font-size:18px}
+      .stage{grid-template-columns:1fr;gap:18px}
+      .cover{width:min(82vw,560px)}
+      .footer-note{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="bar">
+      <div>Pitchfork Selects Viewer</div>
+      <div id="week">—</div>
+    </div>
+
+    <div class="center" id="shell">
+      <button class="nav" id="prev" aria-label="Anterior">←</button>
+
+      <main class="stage" id="stage">
+        <div class="cover-wrap">
+          <img id="cover" class="cover" alt="">
+        </div>
+
+        <section class="meta">
+          <div class="eyebrow" id="sourceLine">Loading…</div>
+          <h1 class="artist" id="artist">—</h1>
+          <p class="track" id="track">—</p>
+          <p class="album" id="album">—</p>
+          <div class="line"></div>
+          <div class="actions">
+            <a class="chip" id="trackLink" href="#" target="_blank" rel="noopener noreferrer">Abrir</a>
+            <a class="chip" id="sourceLink" href="#" target="_blank" rel="noopener noreferrer">Nota</a>
+          </div>
+        </section>
+      </main>
+
+      <button class="nav" id="next" aria-label="Siguiente">→</button>
+    </div>
+
+    <div class="bar">
+      <div id="counter">0 / 0</div>
+      <div class="footer-note">← → navegar &nbsp;·&nbsp; click en tapa para abrir</div>
+    </div>
+  </div>
+
+  <script>
+    const url = './data/latest.json';
+    let data = {items:[]};
+    let i = 0;
+
+    const el = (id) => document.getElementById(id);
+    const week = el('week');
+    const cover = el('cover');
+    const artist = el('artist');
+    const track = el('track');
+    const album = el('album');
+    const counter = el('counter');
+    const trackLink = el('trackLink');
+    const sourceLink = el('sourceLink');
+    const sourceLine = el('sourceLine');
+    const shell = el('shell');
+
+    function fmtDate(v){
+      if(!v) return 'Sin fecha';
+      const d = new Date(v + 'T12:00:00');
+      if (Number.isNaN(d.getTime())) return v;
+      return d.toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+    }
+
+    function renderEmpty(){
+      shell.innerHTML = `
+        <div></div>
+        <div class="empty">
+          <div>
+            <h2 style="margin:0 0 10px;font-size:24px;letter-spacing:-.03em">Todavía no hay data</h2>
+            <p style="margin:0;color:#767676;line-height:1.5">Esperá a que corra el workflow o lanzalo manualmente desde GitHub Actions.</p>
+          </div>
+        </div>
+        <div></div>
+      `;
+      week.textContent = 'Sin datos';
+      counter.textContent = '0 / 0';
+    }
+
+    function render(){
+      if(!data.items?.length){ renderEmpty(); return; }
+      const item = data.items[i];
+      week.textContent = fmtDate(data.week_of);
+      sourceLine.textContent = `${data.playlist_name || 'Pitchfork Selects'} · ${data.source_article || ''}`;
+      artist.textContent = item.artist || '—';
+      track.textContent = item.track || '—';
+      album.textContent = item.album || 'Álbum no disponible';
+      counter.textContent = `${i + 1} / ${data.items.length}`;
+      cover.src = item.cover_url || '';
+      cover.alt = `${item.artist || ''} — ${item.track || ''}`;
+      cover.onclick = () => item.track_url && window.open(item.track_url, '_blank', 'noopener,noreferrer');
+      trackLink.href = item.track_url || '#';
+      sourceLink.href = data.source_url || '#';
+    }
+
+    function next(){ if(data.items?.length){ i = (i + 1) % data.items.length; render(); } }
+    function prev(){ if(data.items?.length){ i = (i - 1 + data.items.length) % data.items.length; render(); } }
+
+    document.getElementById('next').addEventListener('click', next);
+    document.getElementById('prev').addEventListener('click', prev);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') next();
+      if (e.key === 'ArrowLeft') prev();
+    });
+
+    fetch(url, {cache: 'no-store'})
+      .then(r => r.json())
+      .then(json => { data = json; render(); })
+      .catch(() => renderEmpty());
+  </script>
+</body>
+</html>
