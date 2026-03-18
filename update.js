@@ -1,46 +1,78 @@
 const fs = require("fs");
 
+async function fetchText(url) {
+  const res = await fetch(url);
+  return await res.text();
+}
+
+function clean(text) {
+  return text
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function run() {
   let items = [];
 
-  try {
-    const res = await fetch("https://pitchfork.com/tags/pitchfork-selects/");
-    const html = await res.text();
+  // 1. encontrar última nota
+  const tagHtml = await fetchText("https://pitchfork.com/tags/pitchfork-selects/");
+  const match = tagHtml.match(/href="(\/news\/[^"]+pitchfork-selects[^"]+)"/i);
 
-    const match = html.match(/href="(\/news\/[^"]+pitchfork-selects[^"]+)"/i);
-    const articleUrl = "https://pitchfork.com" + match[1];
+  if (!match) {
+    throw new Error("No encontré la nota");
+  }
 
-    const res2 = await fetch(articleUrl);
-    const article = await res2.text();
+  const articleUrl = "https://pitchfork.com" + match[1];
 
-    const regex = /<li>(.*?)<\/li>/g;
-    let m;
+  // 2. bajar artículo
+  const html = await fetchText(articleUrl);
 
-    while ((m = regex.exec(article))) {
-      const text = m[1].replace(/<[^>]+>/g, "").trim();
+  // 3. buscar patrones tipo "Artist: Track" dentro del contenido
+  const possible = html.match(/>([^<]{3,100}?)\s[–-]\s([^<]{3,150}?)</g) || [];
 
-      if (text.includes("–") || text.includes("-")) {
-        const [artist, track] = text.split(/–|-/).map(s => s.trim());
+  for (let line of possible) {
+    const cleanLine = clean(line);
+
+    const parts = cleanLine.split(/\s[–-]\s/);
+
+    if (parts.length === 2) {
+      const artist = parts[0];
+      const track = parts[1];
+
+      // filtro básico para evitar basura
+      if (
+        artist.length < 80 &&
+        track.length < 120 &&
+        !artist.includes("Pitchfork")
+      ) {
         items.push({ artist, track });
       }
     }
-
-  } catch (e) {
-    console.log("Pitchfork fail, fallback mode");
   }
 
-  // 🔥 fallback si no encontró nada
+  // eliminar duplicados
+  const unique = [];
+  const seen = new Set();
+
+  for (let item of items) {
+    const key = item.artist + item.track;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(item);
+    }
+  }
+
+  items = unique.slice(0, 20);
+
   if (items.length === 0) {
-    items = [
-      { artist: "Rosalía", track: "Saoko" },
-      { artist: "Frank Ocean", track: "Nights" },
-      { artist: "Tame Impala", track: "The Less I Know The Better" }
-    ];
+    throw new Error("No pude extraer tracks reales");
   }
 
+  // 4. enrich con Apple
   const results = [];
 
-  for (let item of items.slice(0, 20)) {
+  for (let item of items) {
     try {
       const query = encodeURIComponent(item.artist + " " + item.track);
       const url = `https://itunes.apple.com/search?term=${query}&entity=song&limit=1`;
@@ -64,7 +96,7 @@ async function run() {
   const data = {
     week_of: new Date().toISOString().slice(0, 10),
     source_article: "Pitchfork Selects",
-    source_url: "https://pitchfork.com",
+    source_url: articleUrl,
     playlist_name: "Pitchfork Selects",
     items: results
   };
@@ -73,7 +105,7 @@ async function run() {
 
   fs.writeFileSync("data/latest.json", JSON.stringify(data, null, 2));
 
-  console.log("DONE", results.length);
+  console.log("DONE:", results.length, "tracks");
 }
 
 run();
