@@ -1,7 +1,29 @@
 {
   "week_of": "2026-03-18",
   "source_article": "Pitchfork Selects",
-  "source_url": "https://pitchfork.com/news/jaeychino-ora-cogan-rostam-and-more-this-weeks-pitchfork-selects-playlist/",
+  "source_url": "https://pitchfork.com",
   "playlist_name": "Pitchfork Selects",
-  "items": []
+  "items": [
+    {
+      "artist": "Sweet Little Band",
+      "track": "Saoko",
+      "album": "Babies Go Rosalía",
+      "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/30/9a/76/309a7687-ea54-c426-5786-0251310e5069/197187398171.jpg/1200x1200bb.jpg",
+      "track_url": "https://music.apple.com/us/album/saoko/1654013024?i=1654013499&uo=4"
+    },
+    {
+      "artist": "Blond Piano",
+      "track": "Nights",
+      "album": "Piano Tribute to Frank Ocean",
+      "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/cd/d3/d0/cdd3d00e-ec53-2e9f-81e2-774c07f5bea9/1827849271625.jpg/1200x1200bb.jpg",
+      "track_url": "https://music.apple.com/us/album/nights/1599412296?i=1599412673&uo=4"
+    },
+    {
+      "artist": "Mau P",
+      "track": "The Less I Know The Better",
+      "album": "The Less I Know The Better - Single",
+      "cover_url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/a0/9a/2c/a09a2ca3-a5a6-814b-0af7-640dc0aef0aa/091012682261.jpg/1200x1200bb.jpg",
+      "track_url": "https://music.apple.com/us/album/the-less-i-know-the-better/1792993807?i=1792993808&uo=4"
+    }
+  ]
 }
